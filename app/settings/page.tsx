@@ -71,24 +71,28 @@ export default function SettingsPage() {
     setUpdating(true)
     try {
       const newRole = user.role === "viewer" ? "admin" : "viewer"
+      const password = window.prompt("관리자 비밀번호를 입력하세요 (숫자 6자리)") || ""
+      if (!password) {
+        setUpdating(false)
+        return
+      }
 
-      const { error } = await supabase.from("users").upsert({
-        id: user.id,
-        email: user.email,
-        name: user.name || "사용자",
-        role: newRole,
+      const res = await fetch("/api/admin/update-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, newRole, password }),
       })
 
-      if (error) {
-        console.error("[v0] Role update error:", error)
-        alert("권한 변경 중 오류가 발생했습니다.")
-      } else {
-        console.log("[v0] Role changed successfully to:", newRole)
-        setUser({ ...user, role: newRole })
-        alert(`권한이 ${newRole === "admin" ? "관리자" : "뷰어"}로 변경되었습니다.`)
-        // Refresh the page to update navigation and permissions
-        router.refresh()
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        console.error("[v0] Role update error:", payload)
+        alert(payload?.error || "권한 변경 중 오류가 발생했습니다.")
+        return
       }
+
+      setUser({ ...user, role: newRole })
+      alert(`권한이 ${newRole === "admin" ? "관리자" : "뷰어"}로 변경되었습니다.`)
+      router.refresh()
     } catch (error) {
       console.error("[v0] Role change error:", error)
       alert("권한 변경 중 오류가 발생했습니다.")
